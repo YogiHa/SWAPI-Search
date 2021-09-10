@@ -21,6 +21,7 @@ type TSwObj = {
     vehicles?: string[]
     starships?: string[]
     planets?: string[]
+    characters?: string[]
 }
 
 type TSwSearchRes = {
@@ -28,7 +29,7 @@ type TSwSearchRes = {
     results: TSwObj[]
 }
 
-let getNameOrTitle = (obj: TSwObj) => obj['name'] || obj['title']
+let getNameOrTitle: (obj: TSwObj) => string = (obj) => obj['name'] || obj['title'] || ''
 
 async function search() {
     let searchStr: string = process.argv.slice(2).join(' ')
@@ -48,24 +49,21 @@ async function search() {
         if (!apiSearchRes.count) typeIdx++
         else {
             let categoryIdx: number = 0
-            let tempRes = apiSearchRes.results[categoryIdx]
             while (categoryIdx < apiSearchRes.count) {
-                let additonalChoices =
-                    categoryIdx + 1 < apiSearchRes.count
-                        ? [{ name: `I'm not searching for ${getNameOrTitle(tempRes)}`, value: 0 }]
-                        : []
-                let userChoice = (
-                    await prompt({
-                        message: `show results for ${getNameOrTitle(tempRes)}?`,
-                        name: 'q',
-                        type: 'list',
-                        choices: [
-                            { name: 'yes', value: 1 },
-                            ...additonalChoices,
-                            { name: `I'm not searching for kind of ${category}`, value: -1 }
-                        ]
-                    })
-                ).q
+                let tempRes = apiSearchRes.results[categoryIdx]
+                if (!tempRes.people && tempRes.characters) tempRes.people = tempRes.characters
+                let { userChoice }: { userChoice: number } = await prompt({
+                    message: `show results for ${getNameOrTitle(tempRes)}?`,
+                    name: 'userChoice',
+                    type: 'list',
+                    choices: [
+                        { name: 'yes', value: 1 },
+                        ...(categoryIdx + 1 < apiSearchRes.count
+                            ? [{ name: `I'm not searching for ${getNameOrTitle(tempRes)}`, value: 0 }]
+                            : []),
+                        { name: `I'm not searching for kind of ${category}`, value: -1 }
+                    ]
+                })
                 if (userChoice == 0) categoryIdx++
                 else {
                     userChoice < 0 ? typeIdx++ : (result = tempRes)
@@ -78,11 +76,11 @@ async function search() {
     else {
         for (let i = 0; i < apiTypes.length; i++) {
             if (result[apiTypes[i]]?.length) {
-                console.log(`\n\n\nAssociated ${apiTypes[i]}\n`)
+                console.log(`\nAssociated ${apiTypes[i]}:`)
                 // @ts-ignore
                 let promises = result[apiTypes[i]].map(async (url) => {
                     let { data }: { data: TSwObj } = await axios.get(url)
-                    console.log(getNameOrTitle(data))
+                    console.log(`-- ${getNameOrTitle(data)}`)
                 })
                 await Promise.all(promises)
             }
