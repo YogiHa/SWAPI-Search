@@ -31,11 +31,11 @@ type TSwSearchRes = {
 
 let getNameOrTitle: (obj: TSwObj) => string = (obj) => obj['name'] || obj['title'] || ''
 
-async function search() {
-    let searchStr: string = process.argv.slice(2).join(' ')
+export async function search(str = '') {
+    let searchStr: string = str || process.argv.slice(2).join(' ')
     if (!searchStr) {
         console.log(`Can't search w/t input`)
-        return
+        return 411
     }
 
     let result: TSwObj | null = null
@@ -72,20 +72,23 @@ async function search() {
             }
         }
     }
-    if (!result) console.log(`couldn't find anything for this input`)
-    else {
+    if (!result) {
+        console.log(`couldn't find anything for this input`)
+        return 404
+    } else {
         for (let i = 0; i < apiTypes.length; i++) {
             if (result[apiTypes[i]]?.length) {
                 console.log(`\nAssociated ${apiTypes[i]}:`)
                 // @ts-ignore
                 let promises = result[apiTypes[i]].map(async (url) => {
-                    let { data }: { data: TSwObj } = await axios.get(url)
-                    console.log(`-- ${getNameOrTitle(data)}`)
+                    let associatedData : TSwObj = (await axios.get(url)).data
+                    console.log(`-- ${getNameOrTitle(associatedData)}`)
                 })
                 await Promise.all(promises)
             }
         }
+        return getNameOrTitle(result)
     }
 }
 
-search()
+if (require.main === module) search()
